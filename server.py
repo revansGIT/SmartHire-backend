@@ -15,40 +15,212 @@ import numpy as np
 app = Flask(__name__)
 CORS(app)
 
-# Enhanced 2025 skills with context-aware mapping
+# === Enhanced Global Skill Dictionary 2025 ===
 SKILLS = {
-    # Core Tech
-    "python": 1.3, "react": 1.3, "node.js": 1.2, "typescript": 1.2, 
-    "javascript": 1.1, "vue": 1.1, "next.js": 1.1,
-    
-    # AI/ML
-    "llm": 1.4, "generative ai": 1.4, "langchain": 1.3, "chatgpt": 1.3,
-    "ai": 1.2, "machine learning": 1.2, "nlp": 1.2,
-    
-    # Cloud/DevOps
-    "aws": 1.3, "azure": 1.2, "gcp": 1.2, "docker": 1.2, 
-    "ci/cd": 1.3, "jenkins": 1.1, "terraform": 1.1,
-    
-    # Web3/Blockchain
-    "web3": 1.3, "blockchain": 1.2, "solidity": 1.2, "nft": 1.1,
-    
-    # Data
-    "sql": 1.1, "mongodb": 1.1
+    # --- Information Technology & Software (Programming, Dev, CS/CSE) ---
+    "python": 1.3, "java": 1.3, "c++": 1.3, "c#": 1.2, "golang": 1.2,
+    "php": 1.1, "ruby": 1.1, "typescript": 1.2, "javascript": 1.2,
+    "kotlin": 1.1, "swift": 1.1, "r": 1.1, "matlab": 1.1, "rust": 1.2,
+
+    "frontend": 1.3, "backend": 1.3, "fullstack": 1.3,
+    "react": 1.3, "vue": 1.2, "angular": 1.2, "next.js": 1.2, "nuxt.js": 1.1,
+    "html": 1.1, "css": 1.1, "bootstrap": 1.1, "tailwind": 1.1,
+    "node.js": 1.3, "express": 1.2, "django": 1.2, "flask": 1.2,
+    "fastapi": 1.2, "spring boot": 1.2, "dotnet": 1.2,
+
+    "sql": 1.2, "mysql": 1.2, "postgresql": 1.2, "oracle": 1.1,
+    "mongodb": 1.2, "firebase": 1.1, "redis": 1.1, "cassandra": 1.1,
+
+    "devops": 1.3, "ci/cd": 1.3, "docker": 1.3, "kubernetes": 1.3,
+    "jenkins": 1.2, "terraform": 1.2, "ansible": 1.1,
+    "aws": 1.3, "azure": 1.3, "gcp": 1.3, "linux": 1.2,
+
+    "cybersecurity": 1.3, "ethical hacking": 1.3,
+    "penetration testing": 1.3, "network security": 1.2,
+    "cryptography": 1.2, "forensics": 1.1, "firewalls": 1.1,
+
+    "ai": 1.3, "ml": 1.3, "deep learning": 1.3,
+    "nlp": 1.3, "computer vision": 1.2,
+    "data science": 1.3, "data analysis": 1.3,
+    "chatgpt": 1.2, "llm": 1.2,
+    "pandas": 1.1, "numpy": 1.1, "scikit-learn": 1.1,
+    "tensorflow": 1.2, "pytorch": 1.2, "matplotlib": 1.1, "seaborn": 1.1,
+    "big data": 1.2, "hadoop": 1.1, "spark": 1.1,
+
+    "sqa": 1.3, "quality assurance": 1.3,
+    "manual testing": 1.2, "automation testing": 1.2,
+    "selenium": 1.2, "junit": 1.1, "pytest": 1.1, "testng": 1.1,
+    "api testing": 1.2, "load testing": 1.1,
+
+    "operating systems": 1.1, "computer networks": 1.2,
+    "tcp/ip": 1.1, "cloud computing": 1.2, "distributed systems": 1.2,
+
+    "software engineering": 1.3, "web development": 1.2,
+
+    "project manager": 1.3, "scrum master": 1.2,
+    "product manager": 1.3, "system analyst": 1.2,
+    "business analyst": 1.2, "it consultant": 1.2,
+    "software architect": 1.3, "tech lead": 1.2,
+
+    # --- Healthcare & Medicine ---
+    "doctor": 1.3, "nurse": 1.2, "pharmacist": 1.2,
+    "physiotherapist": 1.2, "medical researcher": 1.3, "public health": 1.1,
+
+    # --- Engineering & Technical ---
+    "civil engineering": 1.2, "electrical engineering": 1.2,
+    "mechanical engineering": 1.2, "biomedical engineering": 1.3,
+    "chemical engineering": 1.2, "cad": 1.1,
+
+    # --- Education & Training ---
+    "teacher": 1.2, "lecturer": 1.2, "professor": 1.3,
+    "academic researcher": 1.3, "corporate trainer": 1.2, "pedagogy": 1.1,
+
+    # --- Business, Management & Administration ---
+    "manager": 1.2, "hr": 1.1, "project management": 1.2,
+    "operations management": 1.2, "business analysis": 1.2,
+    "consultant": 1.2, "entrepreneurship": 1.3, "leadership": 1.2,
+
+    # --- Finance, Banking & Accounting ---
+    "accountant": 1.2, "auditor": 1.2, "investment banker": 1.3,
+    "tax consultant": 1.2, "financial analyst": 1.3,
+    "risk management": 1.2, "economics": 1.2, "bookkeeping": 1.1,
+
+    # --- Law, Security & Government ---
+    "lawyer": 1.3, "judge": 1.3, "public administration": 1.2,
+    "diplomacy": 1.2, "governance": 1.1, "policy making": 1.2,
+
+    # --- Creative, Arts & Media ---
+    "journalism": 1.3, "author": 1.2, "marketing": 1.2,
+    "brand strategy": 1.2, "copywriting": 1.1, "storytelling": 1.1,
+    "graphic design": 1.2, "digital media": 1.2
 }
 
-# Context-aware skill mapping
+# === Context-Aware Skill Mapping ===
 SKILL_CONTEXT_MAP = {
-    "react": ["reactjs", "react.js", "reactjs"],
+    # Programming
+    "c++": ["cpp"], "c#": ["csharp", ".net"],
+    "python": ["py"], "java": ["jdk", "jre"],
+    "javascript": ["js"], "typescript": ["ts"],
+    "dotnet": [".net", "asp.net"],
+
+    # Web Dev
+    "frontend": ["frontend developer", "ui developer"],
+    "backend": ["backend developer", "server-side"],
+    "fullstack": ["full stack developer"],
+    "react": ["reactjs", "react.js"],
     "vue": ["vuejs", "vue.js"],
+    "angular": ["angularjs"],
     "node.js": ["nodejs", "node"],
-    "typescript": ["ts"],
-    "llm": ["large language model", "language model", "gpt", "chatgpt", "openai"],
-    "ci/cd": ["continuous integration", "continuous deployment", "devops"],
-    "aws": ["amazon web services"],
+    "express": ["expressjs"],
+    "django": ["django framework"],
+    "flask": ["flask framework"],
+    "fastapi": ["python api"],
+    "web development": ["web developer", "website development"],
+
+    # Databases
+    "mysql": ["maria db"],
+    "postgresql": ["postgres"],
+    "mongodb": ["mongo"],
+    "oracle": ["oracle db"],
+    "redis": ["redis cache"],
+
+    # DevOps
+    "ci/cd": ["continuous integration", "continuous deployment"],
     "docker": ["containerization"],
-    "web3": ["crypto", "cryptocurrency", "decentralized"],
-    "solidity": ["smart contracts"],
-    "fastapi": ["python api"]
+    "kubernetes": ["k8s"],
+    "aws": ["amazon web services"],
+    "azure": ["microsoft azure"],
+    "gcp": ["google cloud"],
+
+    # Cybersecurity
+    "cybersecurity": ["infosec", "network security", "information security"],
+    "ethical hacking": ["penetration tester", "red teaming"],
+    "forensics": ["digital forensics"],
+
+    # AI / ML
+    "ai": ["artificial intelligence"],
+    "ml": ["machine learning"],
+    "nlp": ["natural language processing"],
+    "deep learning": ["neural networks"],
+    "chatgpt": ["openai", "gpt", "language model"],
+    "data science": ["data scientist", "big data"],
+    "data analysis": ["data analyst"],
+
+    # QA / Testing
+    "sqa": ["software testing", "qa engineer"],
+    "automation testing": ["automated tests"],
+    "manual testing": ["manual tester"],
+    "selenium": ["selenium webdriver"],
+    "api testing": ["postman"],
+
+    # Networking
+    "computer networks": ["networking"],
+    "tcp/ip": ["network protocol"],
+
+    # Management & Analyst
+    "project manager": ["pmp", "agile manager"],
+    "scrum master": ["agile coach"],
+    "product manager": ["product owner"],
+    "system analyst": ["systems analysis"],
+    "business analyst": ["ba"],
+    "software architect": ["solution architect"],
+    "tech lead": ["technical lead", "team lead"],
+    "project management": ["project coordination", "program management"],
+
+    # Healthcare
+    "doctor": ["physician", "medical doctor", "md"],
+    "nurse": ["registered nurse", "rn", "clinical nurse"],
+    "pharmacist": ["pharmacy"],
+    "physiotherapist": ["physical therapist"],
+    "medical researcher": ["clinical researcher", "biomedical research"],
+    "public health": ["epidemiology", "community health"],
+
+    # Engineering
+    "civil engineering": ["civil engineer", "structural engineer"],
+    "electrical engineering": ["electrical engineer", "electronics engineer"],
+    "mechanical engineering": ["mechanical engineer"],
+    "biomedical engineering": ["biomedical engineer", "bioengineering"],
+    "chemical engineering": ["chemical engineer", "process engineer"],
+    "cad": ["autocad", "solidworks"],
+    "matlab": ["simulink"],
+
+    # Education
+    "teacher": ["school teacher", "educator"],
+    "lecturer": ["academic lecturer"],
+    "professor": ["faculty", "academician"],
+    "academic researcher": ["research scholar"],
+    "corporate trainer": ["learning consultant", "training specialist"],
+
+    # Business & Management
+    "manager": ["project manager", "operations manager", "hr manager"],
+    "business analysis": ["business analyst"],
+    "consultant": ["business consultant", "management consultant"],
+    "entrepreneurship": ["startup founder"],
+    "leadership": ["team lead", "executive leadership"],
+
+    # Finance
+    "accountant": ["chartered accountant", "ca"],
+    "auditor": ["internal auditor", "external auditor"],
+    "investment banker": ["ib", "equity banker"],
+    "tax consultant": ["tax advisor"],
+    "financial analyst": ["equity analyst", "finance analyst"],
+    "risk management": ["risk analyst", "risk officer"],
+
+    # Law & Government
+    "lawyer": ["attorney", "advocate", "barrister"],
+    "judge": ["magistrate"],
+    "public administration": ["civil servant"],
+    "diplomacy": ["foreign service", "ambassador"],
+    "policy making": ["policy advisor"],
+
+    # Creative & Media
+    "journalism": ["journalist", "reporter"],
+    "author": ["writer", "novelist"],
+    "marketing": ["digital marketing", "seo specialist"],
+    "brand strategy": ["brand strategist", "branding"],
+    "copywriting": ["content writer"],
+    "graphic design": ["designer", "ui/ux"],
+    "digital media": ["social media specialist", "content creator"]
 }
 
 nlp = spacy.load("en_core_web_sm")
