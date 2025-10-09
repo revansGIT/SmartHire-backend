@@ -1,3 +1,4 @@
+import utils.session
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
@@ -10,6 +11,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from spacy.matcher import PhraseMatcher
 from collections import defaultdict
+import time
 
 app = Flask(__name__)
 CORS(app)
@@ -222,6 +224,13 @@ SKILL_CONTEXT_MAP = {
     "digital media": ["social media specialist", "content creator"]
 }
 
+# ✅ Precompile regex for performance
+PRECOMPILED_PATTERNS = {
+    term: [re.compile(rf'\b{re.escape(v)}\b', re.I) for v in variations]
+    for term, variations in SKILL_CONTEXT_MAP.items()
+}
+
+# Load SpaCy model once
 nlp = spacy.load("en_core_web_sm")
 matcher = PhraseMatcher(nlp.vocab)
 patterns = [nlp.make_doc(skill) for skill in SKILLS.keys()]
@@ -233,135 +242,84 @@ def extract_text_from_file(filepath):
             return " ".join([page.extract_text() or "" for page in pdf.pages])
     elif filepath.endswith(('.doc', '.docx')):
         doc = docx.Document(filepath)
-        return " ".join([para.text for para in doc.paragraphs if para.text])
-    else:
-        raise ValueError("Unsupported file format")
+        return " ".join(p.text for p in doc.paragraphs if p.text)
+    raise ValueError("Unsupported file format")
 
 def clean_text(text):
-    """Advanced text normalization"""
-    # Preserve key tech terms (C++, .NET, etc.)
-    text = re.sub(r'([a-zA-Z]+)\+', r'\1plus', text)  # Handle C++
-    text = re.sub(r'\.([a-zA-Z]{2,})', r' dot \1', text)  # Handle .NET, .js
-    
-    # Remove special chars but preserve context
-    text = re.sub(r'[^a-zA-Z0-9\s#+]', ' ', text)
+    text = re.sub(r'[^a-zA-Z0-9\s+.#]', ' ', text)
     text = re.sub(r'\s+', ' ', text).lower().strip()
-    
-    # Restore preserved terms
-    text = re.sub(r'(\w+)plus', r'\1+', text)
-    text = re.sub(r' dot (\w+)', r'.\1', text)
-    
     return text
 
+
 def extract_skills(text):
-    """Context-aware skill extraction with stricter matching"""
     text = clean_text(text)
     doc = nlp(text)
     matches = matcher(doc)
-    found_skills = set()
-    
-    # Direct phrase matches
+    found = set()
+
     for _, start, end in matches:
         skill = doc[start:end].text.strip().lower()
         if skill in SKILLS:
-            found_skills.add(skill)
+            found.add(skill)
 
-    # Context-based mapping with word-boundary regex
-    for term, variations in SKILL_CONTEXT_MAP.items():
-        for variant in variations:
-            # stricter matching
-            if re.search(rf"\b{re.escape(variant)}\b", text):
-                found_skills.add(term)
+    for term, regex_list in PRECOMPILED_PATTERNS.items():
+        if any(r.search(text) for r in regex_list):
+            found.add(term)
 
-    # Handle compound terms like React.js, Node.js
-    for token in doc:
-        if token.text.endswith('.js'):
-            base = token.text[:-3].lower()
-            if base in SKILLS:
-                found_skills.add(base)
-
-    # === Special case fix for TypeScript ===
-    # Only allow if "typescript" is explicitly present, not just "ts"
-    if "typescript" not in text and "typescript" in found_skills:
-        found_skills.remove("typescript")
-
-    return found_skills
+    return found
 
 def calculate_similarity(job_desc, resume_text):
-    """Enhanced similarity with context weighting"""
-    # TF-IDF similarity with focus on skills
-    vectorizer = TfidfVectorizer(
-        stop_words='english',
-        ngram_range=(1, 3),  # Capture phrases like "machine learning"
-        min_df=1,
-        max_features=3000,
-        sublinear_tf=True  # Boost rare terms
-    )
-    
-    # Combine texts for better vectorization
-    all_text = [job_desc, resume_text]
-    tfidf = vectorizer.fit_transform(all_text)
-    
-    # Calculate base similarity
-    base_score = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0] * 100
-    
-    # Skill-based weighting
+    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 3))
+    tfidf = vectorizer.fit_transform([job_desc, resume_text])
+    semantic_score = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0] * 100
+
     job_skills = extract_skills(job_desc)
     resume_skills = extract_skills(resume_text)
-    matched_skills = job_skills & resume_skills
-    missing_skills = job_skills - resume_skills
-    
-    # Calculate skill impact (max 40% boost)
-    skill_impact = min(40, len(matched_skills) / max(1, len(job_skills)) * 40)
-    
-    # Final score: 10% text similarity, 90% skill match
-    final_score = min(100, base_score * 0.1 + (len(matched_skills) / max(1, len(job_skills))) * 90)
-    
-    return final_score, matched_skills, missing_skills
+    matched = job_skills & resume_skills
+    missing = job_skills - resume_skills
+
+    # ✅ Weighted scoring: 60% skills, 40% semantic
+    skill_score = (len(matched) / max(1, len(job_skills))) * 100
+    final_score = (skill_score * 0.6) + (semantic_score * 0.4)
+
+    # ✅ Explainability: capture sentences mentioning missing skills
+    job_lines = job_desc.split('.')
+    why_missing = {}
+    for skill in missing:
+        related_lines = [line.strip() for line in job_lines if skill in line.lower()]
+        if related_lines:
+            why_missing[skill] = related_lines[:2]  # up to 2 examples
+
+    return final_score, matched, missing, why_missing
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
     if 'resume' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-        
+        return jsonify({"error": "No resume uploaded"}), 400
+
     file = request.files['resume']
-    job_desc = request.form.get('job_description', '')
-    
-    if file.filename == '':
-        return jsonify({"error": "Empty file name"}), 400
-        
-    if not job_desc.strip():
+    job_desc = request.form.get('job_description', '').strip()
+    if not job_desc:
         return jsonify({"error": "Job description required"}), 400
 
-    upload_dir = 'uploads'
-    os.makedirs(upload_dir, exist_ok=True)
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(upload_dir, filename)
-    
+    os.makedirs('uploads', exist_ok=True)
+    filepath = os.path.join('uploads', secure_filename(file.filename))
+    file.save(filepath)
+
     try:
-        file.save(filepath)
         resume_text = extract_text_from_file(filepath)
-        
-        # Calculate scores
-        match_score, matched_skills, missing_skills = calculate_similarity(job_desc, resume_text)
-        
-        # Generate suggestions
-        top_missing = sorted(missing_skills, key=lambda s: SKILLS.get(s, 1), reverse=True)[:3]
-        suggestions = "Focus on: " + ", ".join(top_missing) if top_missing else "Strong match!"
-        
+        score, matched, missing, why_missing = calculate_similarity(job_desc, resume_text)
+        suggestions = "Focus on: " + ", ".join(sorted(missing)[:3]) if missing else "Excellent match!"
+
         return jsonify({
-            "match_score": round(match_score, 1),
-            "matched_skills": sorted(matched_skills),
-            "missing_skills": sorted(missing_skills),
+            "match_score": round(score, 1),
+            "matched_skills": sorted(matched),
+            "missing_skills": sorted(missing),
+            "why_missing": why_missing,
             "suggestions": suggestions
         })
-        
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except RuntimeError as e:
-        return jsonify({"error": f"File processing error: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
     finally:
         if os.path.exists(filepath):
             os.remove(filepath)

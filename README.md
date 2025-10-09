@@ -1,2 +1,4 @@
 # SmartHire
 SmartHire: Skill-Based Employee Recommendation Through Ai-Based Resume Screening for Job Portals
+
+This backend, built with Flask, powers an intelligent resume–job matching system that analyzes how well a candidate’s resume aligns with a given job description. It integrates NLP (Natural Language Processing) using SpaCy and TF–IDF cosine similarity to evaluate both skill-based and semantic relevance, ensuring balanced and explainable scoring. The system extracts skills from resumes and job descriptions, applies a weighted scoring model (60% skill match, 40% semantic similarity), and identifies missing skills with contextual sentence-level explanations. With pre-compiled regex patterns, optimized file handling, and CORS-enabled REST API endpoints, this backend is performance-oriented and ready for seamless integration with any React-based frontend or recruitment analytics platform.
