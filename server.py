@@ -3,14 +3,13 @@ from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import os
 import re
+import pdfplumber
 import spacy
-import PyPDF2
 import docx
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from spacy.matcher import PhraseMatcher
 from collections import defaultdict
-import numpy as np
 
 app = Flask(__name__)
 CORS(app)
@@ -229,20 +228,14 @@ patterns = [nlp.make_doc(skill) for skill in SKILLS.keys()]
 matcher.add("SKILLS", patterns)
 
 def extract_text_from_file(filepath):
-    """Robust text extraction with error handling"""
-    try:
-        if filepath.endswith('.pdf'):
-            with open(filepath, 'rb') as f:
-                reader = PyPDF2.PdfReader(f)
-                text = " ".join([page.extract_text() or "" for page in reader.pages])
-                return text
-        elif filepath.endswith(('.doc', '.docx')):
-            doc = docx.Document(filepath)
-            return " ".join([para.text for para in doc.paragraphs if para.text])
-        else:
-            raise ValueError("Unsupported file format")
-    except Exception as e:
-        raise RuntimeError(f"Text extraction failed: {str(e)}")
+    if filepath.endswith('.pdf'):
+        with pdfplumber.open(filepath) as pdf:
+            return " ".join([page.extract_text() or "" for page in pdf.pages])
+    elif filepath.endswith(('.doc', '.docx')):
+        doc = docx.Document(filepath)
+        return " ".join([para.text for para in doc.paragraphs if para.text])
+    else:
+        raise ValueError("Unsupported file format")
 
 def clean_text(text):
     """Advanced text normalization"""
@@ -261,29 +254,37 @@ def clean_text(text):
     return text
 
 def extract_skills(text):
-    """Context-aware skill extraction with mapping"""
+    """Context-aware skill extraction with stricter matching"""
     text = clean_text(text)
     doc = nlp(text)
     matches = matcher(doc)
     found_skills = set()
     
-    # Direct matches
+    # Direct phrase matches
     for _, start, end in matches:
-        skill = doc[start:end].text
-        found_skills.add(skill)
-    
-    # Context-based mapping
+        skill = doc[start:end].text.strip().lower()
+        if skill in SKILLS:
+            found_skills.add(skill)
+
+    # Context-based mapping with word-boundary regex
     for term, variations in SKILL_CONTEXT_MAP.items():
         for variant in variations:
-            if variant in text:
+            # stricter matching
+            if re.search(rf"\b{re.escape(variant)}\b", text):
                 found_skills.add(term)
-    
-    # Handle compound terms (like "React.js")
+
+    # Handle compound terms like React.js, Node.js
     for token in doc:
-        # Handle React.js -> react
-        if token.text.endswith('.js') and token.text[:-3] in SKILLS:
-            found_skills.add(token.text[:-3])
-    
+        if token.text.endswith('.js'):
+            base = token.text[:-3].lower()
+            if base in SKILLS:
+                found_skills.add(base)
+
+    # === Special case fix for TypeScript ===
+    # Only allow if "typescript" is explicitly present, not just "ts"
+    if "typescript" not in text and "typescript" in found_skills:
+        found_skills.remove("typescript")
+
     return found_skills
 
 def calculate_similarity(job_desc, resume_text):
